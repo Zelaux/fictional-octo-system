@@ -50,7 +50,18 @@ repositories{
 
 
 
+allprojects(){
+    tasks.withType(JavaCompile){
+        options.compilerArgs.addAll(['--release', '8'])
+    }
 
+    tasks.withType(Javadoc){
+        options{
+            addStringOption('Xdoclint:none', '-quiet')
+            addStringOption('-release', '16')
+        }
+    }
+}
 
 apply plugin: "java"
 apply plugin: "java-library"
@@ -60,13 +71,6 @@ sourceSets.main.java.srcDirs = ["src/", "$buildDir/generated/sources/annotationP
 sourceSets.main.kotlin.srcDirs = ["src/", "$buildDir/generated/sources/annotationProcessor/java/main"]
 sourceSets.main.resources.srcDirs = ["assets"]
 version '1.0'
-
-kapt{
-    javacOptions{
-        option("-source", "16")
-        option("-target", "1.8")
-    }
-}
 
 compileJava.options.fork = true
 
