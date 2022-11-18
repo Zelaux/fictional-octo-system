@@ -16,7 +16,7 @@ buildscript{
         arcVersion =mindustryVersion
 
         kotlinVersion = "1.6.0"
-        jabelVersion = "0.7.0"
+        jabelVersion = "34e4c172e65b3928cd9eabe1993654ea79c409cd"
         arcModule = { String name ->
             //skip to last submodule
             if(name.contains(':')) name = name.split(':').last()
@@ -54,13 +54,6 @@ allprojects(){
     tasks.withType(JavaCompile){
         options.compilerArgs.addAll(['--release', '8'])
     }
-
-    tasks.withType(Javadoc){
-        options{
-            addStringOption('Xdoclint:none', '-quiet')
-            addStringOption('-release', '16')
-        }
-    }
 }
 
 apply plugin: "java"
@@ -87,7 +80,7 @@ dependencies{
 
     //you may uncomment this dependency to properly use Java 17 features while still targeting Java 8.
     //note that this fails on some systems for as-of-yet unknown reasons - if this happens to you, revert the changes
-    //annotationProcessor "com.github.Anuken:jabel:$jabelVersion"
+    annotationProcessor "com.github.Anuken:jabel:$jabelVersion"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
 
 }
