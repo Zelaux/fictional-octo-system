@@ -6,6 +6,10 @@ buildscript{
     ext{
         sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
 
+        //the build number that this mod is made for
+        //version of SDK you will be using
+        sdkVersion = '30'
+
         mindustryPath = "com.github.Anuken.Mindustry"
         //the build number that this mod is made for
         mindustryVersion = "v140.4"
@@ -95,7 +99,11 @@ task jarAndroid{
         if(!platformRoot) throw new GradleException("No android.jar found. Ensure that you have an Android platform installed.")
 
         //collect dependencies needed for desugaring
-        def dependencies = (configurations.compileClasspath.asList() + configurations.runtimeClasspath.asList() + [new File(platformRoot, "android.jar")])
+        def dependencies = (
+                configurations.compileClasspath.asList() +
+                        configurations.runtimeClasspath.asList() +
+                        [new File("$sdkRoot/platforms/android-$sdkVersion/android.jar")]
+        )
                 .collect{ "--classpath $it.path" }.join(" ")
 
         //dex and desugar files - this requires d8 in your PATH
