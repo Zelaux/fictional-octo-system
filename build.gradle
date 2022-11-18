@@ -1,3 +1,7 @@
+// Provided by Zelaux
+
+import java.time.format.DateTimeFormatter
+
 buildscript{
     ext{
         sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
@@ -13,6 +17,10 @@ buildscript{
             //skip to last submodule
             if(name.contains(':')) name = name.split(':').last()
             return "com.github.Anuken.Arc:$name:$arcVersion"
+        }
+        doExec = { cmd ->
+            def proc = cmd.execute(null, new File("$buildDir/libs"))
+            proc.waitForProcessOutput(System.out, System.err)
         }
     }
     repositories {
@@ -40,7 +48,7 @@ repositories{
 
 
 
-apply plugin: 'java'
+apply plugin: "java"
 apply plugin: "java-library"
 apply plugin: "kotlin"
 
@@ -59,17 +67,15 @@ kapt{
 compileJava.options.fork = true
 
 dependencies{
-//        implementation coreModule("utils")//extra module
-//        implementation coreModule("blocks")//extra module
-
     compileOnly arcModule("arc-core")
     compileOnly arcModule("extensions:flabel")
     compileOnly arcModule("extensions:freetype")
     compileOnly arcModule("extensions:g3d")
     compileOnly arcModule("extensions:fx")
     compileOnly arcModule("extensions:arcnet")
+    compileOnly "com.github.Anuken.Arc:discord:v136"
     compileOnly "$mindustryPath:core:$mindustryVersion"
-
+    implementation "com.github.liplum:MultiCrafterLib:v1.7"
 
     //you may uncomment this dependency to properly use Java 17 features while still targeting Java 8.
     //note that this fails on some systems for as-of-yet unknown reasons - if this happens to you, revert the changes
@@ -77,29 +83,27 @@ dependencies{
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
 
 }
+
 task jarAndroid {
     dependsOn "jar"
 
     doLast {
-        doExec = { cmd ->
-            def proc = cmd.execute(null, new File("$buildDir/libs"))
-            proc.waitForProcessOutput(System.out, System.err)
-        }
         //collect dependencies needed for desugaring
         def files = (
-                configurations.compileClasspath.asList() +
-                        configurations.runtimeClasspath.asList()+
+                project(":core").configurations.compileClasspath.asList() +
+                        project(":core").configurations.runtimeClasspath.asList() +
+                        configurations.runtimeClasspath.asList() +
                         [new File("$sdkRoot/platforms/android-$sdkVersion/android.jar")]
         )
         def dependencies = files.collect { "--classpath $it.path" }.join(" ")
 
         //dex and desugar files - this requires d8 in your PATH
-        doExec("d8 $dependencies --min-api 14 --output ${project.archivesBaseName}-android.jar ${project.archivesBaseName}-desktop.jar")
+        doExec("d8 $dependencies --min-api 14 --output ${project.archivesBaseName}Android.jar ${project.archivesBaseName}Desktop.jar")
     }
 }
 jar{
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    archiveFileName = "${project.archivesBaseName}Desktop.jar"
+    archiveFileName = "${project.archivesBaseName}-desktop.jar"
     from{
         configurations.runtimeClasspath.collect{ it.isDirectory() ? it : zipTree(it) }
     }
@@ -110,7 +114,7 @@ jar{
         include "icon.png"
     }
 
-    from("resources/assets/"){
+    from("assets/"){
         include "**"
     }
 }
@@ -119,11 +123,11 @@ task deploy(type: Jar){
     dependsOn jar
     archiveFileName = "${project.archivesBaseName}.jar"
 
-    from{ [zipTree("$buildDir/libs/${project.archivesBaseName}Desktop.jar"), zipTree("$buildDir/libs/${project.archivesBaseName}Android.jar")] }
+    from{ [zipTree("$buildDir/libs/${project.archivesBaseName}-desktop.jar"), zipTree("$buildDir/libs/${project.archivesBaseName}-android.jar")] }
 
     doLast{
-        delete{ delete "$buildDir/libs/${project.archivesBaseName}Desktop.jar" }
-        delete{ delete "$buildDir/libs/${project.archivesBaseName}Android.jar" }
+        delete{ delete "$buildDir/libs/${project.archivesBaseName}-desktop.jar" }
+        delete{ delete "$buildDir/libs/${project.archivesBaseName}-android.jar" }
     }
 }
 task mjar(){
@@ -131,36 +135,36 @@ task mjar(){
     ext{
         move = { String intoPath ->
             delete{
-                delete "${intoPath}/${project.archivesBaseName}Desktop.jar"
+                delete "${intoPath}/${project.archivesBaseName}-desktop.jar"
             }
             copy{
-                from "$buildDir/libs/${project.archivesBaseName}Desktop.jar"
+                from "$buildDir/libs/${project.archivesBaseName}-desktop.jar"
                 into intoPath
             }
             println "Moved into " + intoPath
         }
     }
     doLast{
-        def modsDirectories = [];
-        def file = new File(rootDir, "modsDirectories.txt");
-//        println "abs->"+file.getAbsolutePath();
+        def modsDirectories = []
+        def file = new File(rootDir, "modsDirectories.txt")
+//        println "abs->"+file.getAbsolutePath()
         if(file.exists()){
-            BufferedReader reader = new BufferedReader(new FileReader(file));
+            BufferedReader reader = new BufferedReader(new FileReader(file))
             reader.lines().forEach(line -> modsDirectories.add(line))
         }else{
-            modsDirectories.add("classic");
+            modsDirectories.add("classic")
         }
         for(String directory : modsDirectories){
             if (directory.startsWith("#") || directory.startsWith("//")){
                 println "Directory \"$directory\" was skipped."
                 continue
             }
-            if(directory.equals("classic")){
-                directory = "${arc.util.OS.getAppDataDirectoryString("Mindustry")}/mods/";
+            if(directory == "classic"){
+                directory = "${arc.util.OS.getAppDataDirectoryString("Mindustry")}/mods/"
             }
-            move(directory);
+            move(directory)
         }
-        def time = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss"));
+        def time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss"))
         println "Build ended at: ${time}"
     }
 }
@@ -188,9 +192,9 @@ allprojects{
         targetCompatibility = JavaVersion.VERSION_1_8
     }
     tasks.withType(JavaCompile){
-        targetCompatibility = 8
+        targetCompatibility = JavaVersion.VERSION_16
         //switch to JavaVersion.VERSION_17 to use Java 17 features; this requires adding jabel (see dependencies block below)
-        sourceCompatibility = 8
+        sourceCompatibility = JavaVersion.VERSION_16
         options.encoding = "UTF-8"
         options.compilerArgs += ["-Xlint:deprecation"]
 
